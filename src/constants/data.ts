@@ -57,6 +57,14 @@ export const navItems: NavItem[] = [
     shortcut: ['k', 'k'],
     isActive: false,
     items: [] // No child items
+  },
+  {
+    title: 'PDF OCR',
+    url: '/dashboard/pdf-ocr',
+    icon: 'post',
+    shortcut: ['o', 'c'],
+    isActive: false,
+    items: [] // No child items
   }
 ];
 
