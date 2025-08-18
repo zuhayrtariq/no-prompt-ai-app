@@ -53,7 +53,8 @@ export default function PdfOcrPage() {
                     2
                   </div>
                   <p>
-                    We'll automatically detect if it's text-based or scanned
+                    We&apos;ll automatically detect if it&apos;s text-based or
+                    scanned
                   </p>
                 </div>
                 <div className='flex items-start gap-3'>
