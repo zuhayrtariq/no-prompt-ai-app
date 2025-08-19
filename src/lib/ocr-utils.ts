@@ -2,7 +2,7 @@ import pdfParse from 'pdf-parse/lib/pdf-parse';
 import Tesseract from 'tesseract.js';
 import path from 'path';
 import pdf2pic from 'pdf2pic';
-
+import * as fs from 'fs';
 // Types for progress tracking
 export interface OCRProgress {
   stage: 'pdf-parse' | 'pdf-to-images' | 'ocr-processing' | 'complete';
@@ -32,7 +32,7 @@ export async function extractTextFromPDF(
 }> {
   // force ocr
 
-  const { progressCallback, language = 'eng', forceOCR = false } = options;
+  const { progressCallback, language = 'eng', forceOCR = true } = options;
 
   console.log(
     `Starting smart PDF extraction for: ${filename} (${buffer.length} bytes) OCR: ${forceOCR}`
@@ -199,13 +199,25 @@ export async function extractTextWithTesseract(
       pagesTotal: images.length
     });
 
+    const workerPath = cleanPath(
+      path.resolve(
+        require.resolve('tesseract.js/src/worker-script/node/index.js')
+      )
+    );
+    const corePath = cleanPath(
+      path.resolve(require.resolve('tesseract.js-core/tesseract-core.wasm.js'))
+    );
+
+    console.log({ workerPath, corePath });
     const worker = await Tesseract.createWorker(language, 1, {
       logger: (m) => {
         if (m.status === 'recognizing text') {
           const progress = Math.round((m.progress || 0) * 100);
           console.log(`OCR Progress: ${progress}%`);
         }
-      }
+      },
+      workerPath,
+      corePath
     });
 
     let allText = '';
@@ -316,7 +328,23 @@ async function convertPdfToImages(
 
       try {
         const result = await convert(pageNum, { responseType: 'buffer' });
+        console.log('🔍 Raw convert() result:', result);
+
         if (result.buffer) {
+          console.log('📦 Buffer length:', result.buffer.length);
+          console.log('📏 Size:', result.size);
+          console.log('📄 Page:', result.page);
+
+          // Save debug output
+          if (result.buffer.length > 0) {
+            await fs.promises.writeFile(
+              `debug-page-${pageNum}.png`,
+              result.buffer
+            );
+            console.log(`🖼️ Wrote debug-page-${pageNum}.png`);
+          } else {
+            console.warn('⚠️ Empty buffer returned!');
+          }
           // Validate image buffer
           const header = result.buffer.subarray(0, 4);
           const isJpeg = header[0] === 0xff && header[1] === 0xd8;
@@ -362,4 +390,14 @@ async function convertPdfToImages(
       `PDF to image conversion failed: ${error instanceof Error ? error.message : 'Unknown error'}`
     );
   }
+}
+
+function cleanPath(p: string) {
+  return (
+    p
+      // remove " [app-route] (ecmascript)" and anything similar at the end
+      .replace(/\s\[.*$/, '')
+      // remove stray "[project]" folder names injected by Next
+      .replace(/[\\/]?\[project\]/g, '')
+  );
 }
