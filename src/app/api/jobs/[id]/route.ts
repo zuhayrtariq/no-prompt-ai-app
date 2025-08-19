@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { supabase, type Job, type Document } from '@/lib/supabase';
+import { getUserSupabaseId } from '@/lib/supabaseServer';
 
 export async function GET(
   request: NextRequest,
@@ -24,15 +25,25 @@ export async function GET(
       );
     }
 
+    const id = await getUserSupabaseId({ clerkId: userId });
     // Fetch job from database
     const { data: job, error } = await supabase
       .from('jobs')
       .select('*')
       .eq('id', jobId)
-      .eq('user_id', userId)
+      .eq('user_id', id)
       .single();
 
-    if (error || !job) {
+    if (error) {
+      console.error('Error fetching job:', error);
+      return NextResponse.json(
+        {
+          error: error.message
+        },
+        { status: 404 }
+      );
+    }
+    if (!job) {
       console.error('Error fetching job:', error);
       return NextResponse.json(
         {

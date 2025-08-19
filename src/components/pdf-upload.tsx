@@ -57,7 +57,7 @@ export function PdfUpload({ onJobCreated }: PdfUploadProps) {
       console.log('Starting upload for user:', userId);
 
       // Upload to Supabase storage
-      const fileName = `${Date.now()}-${file.name}`;
+      const fileName = `${Date.now()}`;
       console.log('Uploading file:', fileName);
 
       const { data: uploadData, error: uploadError } = await supabase.storage

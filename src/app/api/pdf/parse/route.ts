@@ -8,6 +8,7 @@ import {
   type JobInput
 } from '@/lib/supabase';
 import { extractTextFromPDF } from '@/lib/ocr-utils';
+import { getUserSupabaseId } from '@/lib/supabaseServer';
 export async function POST(request: NextRequest) {
   try {
     // Check authentication
@@ -42,11 +43,11 @@ export async function POST(request: NextRequest) {
       storage_path,
       meta_json: documentMeta
     });
-
+    const id = await getUserSupabaseId({ clerkId: userId });
     const { data: document, error: documentError } = await supabase
       .from('documents')
       .insert({
-        user_id: userId,
+        user_id: id,
         type: 'pdf',
         storage_path,
         meta_json: documentMeta
@@ -80,7 +81,7 @@ export async function POST(request: NextRequest) {
     const { data: job, error: jobError } = await supabase
       .from('jobs')
       .insert({
-        user_id: userId,
+        user_id: id,
         kind: 'pdf_ocr',
         status: 'pending',
         progress: 0,

@@ -35,7 +35,7 @@ export async function extractTextFromPDF(
   const { progressCallback, language = 'eng', forceOCR = false } = options;
 
   console.log(
-    `Starting smart PDF extraction for: ${filename} (${buffer.length} bytes)`
+    `Starting smart PDF extraction for: ${filename} (${buffer.length} bytes) OCR: ${forceOCR}`
   );
 
   // Ensure it's a real Node Buffer
