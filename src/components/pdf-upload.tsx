@@ -10,10 +10,11 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@clerk/nextjs';
 
 interface PdfUploadProps {
-  onJobCreated: (jobId: string) => void;
+  onJobCreated: (jobId: string, fileUrl?: string, fileName?: string) => void;
+  mode?: 'ocr' | 'editor';
 }
 
-export function PdfUpload({ onJobCreated }: PdfUploadProps) {
+export function PdfUpload({ onJobCreated, mode = 'ocr' }: PdfUploadProps) {
   const { userId } = useAuth();
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -83,28 +84,34 @@ export function PdfUpload({ onJobCreated }: PdfUploadProps) {
 
       setUploadProgress(70);
 
-      // Create OCR job
-      const response = await fetch('/api/pdf/parse', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          storage_path: fileName,
-          filename: file.name
-        })
-      });
+      if (mode === 'editor') {
+        // For editor mode, just provide the file URL
+        setUploadProgress(100);
+        onJobCreated(fileName, urlData.publicUrl, file.name);
+      } else {
+        // Create OCR job for OCR mode
+        const response = await fetch('/api/pdf/parse', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            storage_path: fileName,
+            filename: file.name
+          })
+        });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create OCR job');
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to create OCR job');
+        }
+
+        const { job_id } = await response.json();
+        setUploadProgress(100);
+
+        // Notify parent component
+        onJobCreated(job_id);
       }
-
-      const { job_id } = await response.json();
-      setUploadProgress(100);
-
-      // Notify parent component
-      onJobCreated(job_id);
     } catch (err) {
       console.error('Upload error:', err);
       setError(err instanceof Error ? err.message : 'Upload failed');
@@ -119,7 +126,7 @@ export function PdfUpload({ onJobCreated }: PdfUploadProps) {
       <CardHeader>
         <CardTitle className='flex items-center gap-2'>
           <Upload className='h-5 w-5' />
-          Upload PDF for OCR
+          Upload PDF {mode === 'editor' ? 'for Editing' : 'for OCR'}
         </CardTitle>
       </CardHeader>
       <CardContent>

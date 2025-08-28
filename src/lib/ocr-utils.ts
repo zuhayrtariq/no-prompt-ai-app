@@ -32,7 +32,7 @@ export async function extractTextFromPDF(
 }> {
   // force ocr
 
-  const { progressCallback, language = 'eng', forceOCR = true } = options;
+  const { progressCallback, language = 'eng', forceOCR = false } = options;
 
   console.log(
     `Starting smart PDF extraction for: ${filename} (${buffer.length} bytes) OCR: ${forceOCR}`
