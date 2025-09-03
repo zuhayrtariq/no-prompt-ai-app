@@ -39,10 +39,15 @@ export class PdfEditor {
   }
 
   async applyModificationsToPdf(pdfBuffer: ArrayBuffer): Promise<Uint8Array> {
-    const pdfDoc = await PDFDocument.load(pdfBuffer);
-    const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    // Create a completely new PDF document
+    const newPdfDoc = await PDFDocument.create();
+    const helveticaFont = await newPdfDoc.embedFont(StandardFonts.Helvetica);
 
-    // Group modifications by page for efficient processing
+    // Load original PDF to copy pages
+    const originalPdfDoc = await PDFDocument.load(pdfBuffer);
+    const originalPages = originalPdfDoc.getPages();
+
+    // Group modifications by page
     const modsByPage = this.modifications.reduce(
       (acc, mod) => {
         if (!acc[mod.pageNumber]) {
@@ -54,27 +59,30 @@ export class PdfEditor {
       {} as Record<number, PdfModification[]>
     );
 
-    // Apply modifications page by page
-    for (const [pageNum, pageMods] of Object.entries(modsByPage)) {
-      const pageIndex = parseInt(pageNum) - 1; // Convert to 0-based index
-      const page = pdfDoc.getPages()[pageIndex];
+    // Copy each page and apply modifications
+    for (let i = 0; i < originalPages.length; i++) {
+      const pageNumber = i + 1;
 
-      if (!page) continue;
+      // Copy page content (images, graphics, but not text)
+      const [copiedPage] = await newPdfDoc.copyPages(originalPdfDoc, [i]);
+      const newPage = newPdfDoc.addPage(copiedPage);
+
+      // Apply modifications for this page
+      const pageMods = modsByPage[pageNumber] || [];
 
       for (const mod of pageMods) {
         switch (mod.type) {
           case 'text':
-            await this.applyTextModification(page, mod, helveticaFont);
+            await this.applyTextModification(newPage, mod, helveticaFont);
             break;
           case 'highlight':
-            await this.applyHighlightModification(page, mod);
+            await this.applyHighlightModification(newPage, mod);
             break;
-          // Add more modification types as needed
         }
       }
     }
 
-    return await pdfDoc.save();
+    return await newPdfDoc.save();
   }
 
   private async applyTextModification(
@@ -83,11 +91,22 @@ export class PdfEditor {
     font: any
   ) {
     const { x, y, content } = mod;
-    const { text, fontSize = 12, color = { r: 0, g: 0, b: 0 } } = content;
+    const {
+      text,
+      fontSize = 12,
+      color = { r: 0, g: 0, b: 0 },
+      action
+    } = content;
 
+    // Skip drawing if this is an erase operation or empty text
+    if (action === 'erase' || !text || text.trim() === '') {
+      return;
+    }
+
+    // Draw text at the specified position
     page.drawText(text, {
       x,
-      y: page.getHeight() - y, // Convert coordinate system
+      y: page.getHeight() - y, // Convert from canvas to PDF coordinate system
       size: fontSize,
       font,
       color: rgb(color.r / 255, color.g / 255, color.b / 255)

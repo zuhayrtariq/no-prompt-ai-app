@@ -152,6 +152,7 @@ export function PdfEditorClient({
         viewport: viewport
       };
 
+      // Always render the full PDF
       await page.render(renderContext).promise;
       console.log(`Rendered page ${pageNumber} at scale ${scale}`);
     } catch (err) {
@@ -254,15 +255,20 @@ export function PdfEditorClient({
 
       const result = await response.json();
 
-      // Create download link
-      const a = document.createElement('a');
-      a.href = result.download_url;
-      a.download = result.filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-
-      alert(`Successfully exported as ${format.toUpperCase()}!`);
+      // Open PDF in new tab, or download other formats
+      if (format === 'pdf') {
+        window.open(result.download_url, '_blank');
+        alert(`Successfully exported as PDF! Opening in new tab.`);
+      } else {
+        // For non-PDF formats, still download
+        const a = document.createElement('a');
+        a.href = result.download_url;
+        a.download = result.filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        alert(`Successfully exported as ${format.toUpperCase()}!`);
+      }
     } catch (error) {
       console.error('Export failed:', error);
       alert(`Failed to export as ${format.toUpperCase()}`);
@@ -491,13 +497,16 @@ export function PdfEditorClient({
                     editMode !== 'view' ? 'cursor-crosshair' : 'cursor-default'
                   }`}
                 />
-                <PdfTextOverlay
-                  canvasRef={canvasRef}
-                  editMode={editMode}
-                  onModificationAdded={handleModificationAdded}
-                  currentPage={currentPage}
-                  scale={scale}
-                />
+                {canvasRef.current && (
+                  <PdfTextOverlay
+                    canvasRef={canvasRef as React.RefObject<HTMLCanvasElement>}
+                    editMode={editMode}
+                    onModificationAdded={handleModificationAdded}
+                    currentPage={currentPage}
+                    scale={scale}
+                    pdfDocument={pdfDocument}
+                  />
+                )}
               </div>
             </div>
           </ScrollArea>

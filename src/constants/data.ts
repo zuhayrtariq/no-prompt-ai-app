@@ -59,10 +59,18 @@ export const navItems: NavItem[] = [
     items: [] // No child items
   },
   {
+    title: 'PDF Editor V2',
+    url: '/dashboard/pdf-editor-v2',
+    icon: 'fileEdit',
+    shortcut: ['p', 'v'],
+    isActive: false,
+    items: [] // No child items
+  },
+  {
     title: 'PDF Tools',
-    url: '#',
+    url: '/dashboard/pdf-tools',
     icon: 'post',
-    isActive: true,
+    isActive: false,
     items: [
       {
         title: 'PDF Tools Hub',
@@ -81,6 +89,12 @@ export const navItems: NavItem[] = [
         url: '/dashboard/pdf-editor',
         icon: 'fileEdit',
         shortcut: ['p', 'e']
+      },
+      {
+        title: 'PDF Quick Fixer',
+        url: '/dashboard/pdf-quick-fixer',
+        icon: 'zap',
+        shortcut: ['q', 'f']
       }
     ]
   }
