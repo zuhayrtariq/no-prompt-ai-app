@@ -2,16 +2,19 @@
 
 import React from 'react';
 import { BlockModel } from '@/lib/document-model';
+import { DraggableBlock } from './draggable-block';
 
 interface BlockOverlayProps {
   blocks: BlockModel[];
   selectedBlockId?: string;
   onBlockSelect: (block: BlockModel) => void;
   onBlockDoubleClick?: (block: BlockModel) => void;
+  onBlockUpdate?: (block: BlockModel) => void;
   containerDimensions: { width: number; height: number };
   scale: number;
   showDebugInfo?: boolean;
   enableScaling?: boolean;
+  isAddingTextBox?: boolean;
 }
 
 export function BlockOverlay({
@@ -19,12 +22,18 @@ export function BlockOverlay({
   selectedBlockId,
   onBlockSelect,
   onBlockDoubleClick,
+  onBlockUpdate,
   containerDimensions,
   scale,
   showDebugInfo = false,
-  enableScaling = false
+  enableScaling = false,
+  isAddingTextBox = false
 }: BlockOverlayProps) {
   const handleBlockClick = (block: BlockModel, event: React.MouseEvent) => {
+    if (isAddingTextBox) {
+      // When adding text box, don't select blocks - let the click pass through
+      return;
+    }
     event.preventDefault();
     event.stopPropagation();
     onBlockSelect(block);
@@ -34,6 +43,10 @@ export function BlockOverlay({
     block: BlockModel,
     event: React.MouseEvent
   ) => {
+    if (isAddingTextBox) {
+      // When adding text box, don't handle double clicks
+      return;
+    }
     event.preventDefault();
     event.stopPropagation();
     if (onBlockDoubleClick) {
@@ -43,69 +56,24 @@ export function BlockOverlay({
 
   return (
     <div
-      className='pointer-events-none absolute inset-0 select-none'
+      className={`absolute inset-0 select-none ${isAddingTextBox ? 'pointer-events-none' : 'pointer-events-auto'}`}
       style={{
         width: containerDimensions.width,
         height: containerDimensions.height
       }}
     >
-      {blocks.map((block) => {
-        const isSelected = block.id === selectedBlockId;
-        const blockStyle = getBlockVisualStyle(block.type);
-
-        return (
-          <div
-            key={block.id}
-            className={`group pointer-events-auto absolute cursor-pointer transition-all duration-200 ${blockStyle.border} ${blockStyle.background} ${
-              isSelected
-                ? 'z-20 shadow-lg ring-2 ring-blue-500 ring-offset-1'
-                : 'z-10 hover:shadow-md'
-            } `}
-            style={{
-              left: block.position.x,
-              top: block.position.y,
-              width: block.position.width,
-              height: block.position.height,
-              minWidth: '10px',
-              minHeight: '10px'
-            }}
-            onClick={(e) => handleBlockClick(block, e)}
-            onDoubleClick={(e) => handleBlockDoubleClick(block, e)}
-            title={createBlockTooltip(block)}
-          >
-            {/* Block Type Badge */}
-            <div
-              className={`absolute -top-5 left-0 rounded-sm px-2 py-0.5 text-xs font-medium whitespace-nowrap text-white opacity-0 transition-opacity duration-200 ${isSelected ? 'opacity-100' : 'group-hover:opacity-100'} ${blockStyle.badgeColor} `}
-            >
-              {block.type.toUpperCase()}
-              {showDebugInfo && (
-                <span className='ml-1 opacity-75'>
-                  ({Math.round(block.metadata.confidence * 100)}%)
-                </span>
-              )}
-            </div>
-
-            {/* Selection Indicator */}
-            {isSelected && (
-              <div className='absolute inset-0 rounded-sm border-2 border-blue-400 bg-blue-100/20' />
-            )}
-
-            {/* Content Preview for Selected Block */}
-            {isSelected && (
-              <div
-                className={`animate-fade-in absolute -bottom-8 left-0 z-30 max-w-xs rounded bg-gray-900 px-2 py-1 text-xs text-white opacity-0 shadow-lg ${getBlockPreview(block).length > 50 ? 'w-64' : 'w-auto'} `}
-              >
-                <div className='truncate'>{getBlockPreview(block)}</div>
-              </div>
-            )}
-
-            {/* Edit Indicator */}
-            {block.metadata.isEdited && (
-              <div className='absolute -top-1 -right-1 h-3 w-3 rounded-full border-2 border-white bg-green-500' />
-            )}
-          </div>
-        );
-      })}
+      {blocks.map((block) => (
+        <DraggableBlock
+          key={block.id}
+          block={block}
+          isSelected={block.id === selectedBlockId}
+          onBlockSelect={onBlockSelect}
+          onBlockDoubleClick={onBlockDoubleClick}
+          onBlockUpdate={onBlockUpdate}
+          showDebugInfo={showDebugInfo}
+          isAddingTextBox={isAddingTextBox}
+        />
+      ))}
 
       {/* Overlay Info */}
       {showDebugInfo && (

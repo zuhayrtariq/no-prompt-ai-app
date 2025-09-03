@@ -23,16 +23,24 @@ interface PdfEditorV2PreviewProps {
   pdfFile: File;
   onBlockSelect?: (block: BlockModel | null) => void;
   onDocumentModelReady?: (documentModel: DocumentModel) => void;
+  onBlockUpdate?: (block: BlockModel) => void;
   className?: string;
   enableScaling?: boolean;
+  isAddingTextBox?: boolean;
+  onAddTextBox?: (x: number, y: number, pageNumber: number) => void;
+  documentModel?: DocumentModel | null; // Accept document model from parent
 }
 
 export function PdfEditorV2Preview({
   pdfFile,
   onBlockSelect,
   onDocumentModelReady,
+  onBlockUpdate,
   className = '',
-  enableScaling = false
+  enableScaling = false,
+  isAddingTextBox = false,
+  onAddTextBox,
+  documentModel: parentDocumentModel
 }: PdfEditorV2PreviewProps) {
   // Core state
   const [documentModel, setDocumentModel] = useState<DocumentModel | null>(
@@ -223,8 +231,41 @@ export function PdfEditorV2Preview({
     }
   };
 
+  // Handle clicks on PDF container
+  const handleContainerClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    console.log('🖱️ Container clicked, isAddingTextBox:', isAddingTextBox);
+
+    if (isAddingTextBox && onAddTextBox) {
+      event.preventDefault();
+      event.stopPropagation();
+
+      // Calculate position relative to PDF canvas
+      const rect = event.currentTarget.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+
+      console.log('📍 Adding text box at position:', {
+        x,
+        y,
+        page: currentPage
+      });
+
+      // Call the add text box handler with the position and current page
+      onAddTextBox(x, y, currentPage);
+    } else {
+      // Only clear selection if we're clicking directly on the container (not on a block)
+      // Check if the click target is the container itself
+      if (event.target === event.currentTarget) {
+        clearBlockSelection();
+      }
+    }
+  };
+
+  // Use parent document model if available, otherwise use internal state
+  const activeDocumentModel = parentDocumentModel || documentModel;
+
   // Get current page data
-  const currentPageModel = documentModel?.pages.find(
+  const currentPageModel = activeDocumentModel?.pages.find(
     (p) => p.pageNumber === currentPage
   );
   const blocks = currentPageModel?.blocks || [];
@@ -260,7 +301,8 @@ export function PdfEditorV2Preview({
           </Button>
 
           <span className='text-sm font-medium'>
-            Page {currentPage} of {documentModel?.metadata.pageCount || '...'}
+            Page {currentPage} of{' '}
+            {activeDocumentModel?.metadata.pageCount || '...'}
           </span>
 
           <Button
@@ -268,7 +310,8 @@ export function PdfEditorV2Preview({
             size='sm'
             onClick={goToNextPage}
             disabled={
-              !documentModel || currentPage >= documentModel.metadata.pageCount
+              !activeDocumentModel ||
+              currentPage >= activeDocumentModel.metadata.pageCount
             }
           >
             <ChevronRight className='h-4 w-4' />
@@ -338,8 +381,8 @@ export function PdfEditorV2Preview({
           <div className='flex justify-center'>
             <div
               ref={containerRef}
-              className='relative inline-block'
-              onClick={clearBlockSelection}
+              className={`relative inline-block ${isAddingTextBox ? 'cursor-crosshair' : 'cursor-default'}`}
+              onClick={handleContainerClick}
               style={{
                 width: canvasDimensions.width || 'auto',
                 height: canvasDimensions.height || 'auto'
@@ -356,14 +399,16 @@ export function PdfEditorV2Preview({
               />
 
               {/* Block Overlay */}
-              {showBlockOverlay && documentModel && (
+              {showBlockOverlay && activeDocumentModel && (
                 <BlockOverlay
                   blocks={blocks}
                   selectedBlockId={selectedBlockId}
                   onBlockSelect={handleBlockSelect}
+                  onBlockUpdate={onBlockUpdate}
                   containerDimensions={canvasDimensions}
                   scale={scale}
                   showDebugInfo={showDebugInfo}
+                  isAddingTextBox={isAddingTextBox}
                 />
               )}
             </div>
@@ -374,7 +419,7 @@ export function PdfEditorV2Preview({
       {/* Status Bar */}
       <div className='flex items-center justify-between border-t bg-gray-50 p-2 text-xs text-gray-600'>
         <div className='flex items-center space-x-4'>
-          {documentModel && (
+          {activeDocumentModel && (
             <>
               <span>{blocks.length} blocks detected</span>
               <span>•</span>

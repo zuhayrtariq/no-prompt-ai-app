@@ -46,6 +46,7 @@ export function PdfEditorV2({ className = '' }: PdfEditorV2Props) {
   const [isExporting, setIsExporting] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
   const [showPreview, setShowPreview] = useState(true); // Always show by default
+  const [isAddingTextBox, setIsAddingTextBox] = useState(false);
 
   // Preview state
   const [shouldUpdatePreview, setShouldUpdatePreview] = useState(false);
@@ -146,6 +147,32 @@ export function PdfEditorV2({ className = '' }: PdfEditorV2Props) {
     console.log('🗑️ Block deleted:', blockId);
   };
 
+  // Handle block position/size updates (for drag and resize)
+  const handleBlockUpdate = (updatedBlock: BlockModel) => {
+    if (!documentModel) return;
+
+    const updatedModel: DocumentModel = {
+      ...documentModel,
+      pages: documentModel.pages.map((page) => ({
+        ...page,
+        blocks: page.blocks.map((block) =>
+          block.id === updatedBlock.id ? updatedBlock : block
+        )
+      })),
+      updatedAt: new Date()
+    };
+
+    setDocumentModel(updatedModel);
+    setSelectedBlock(updatedBlock);
+
+    console.log('📐 Block updated:', updatedBlock.id, {
+      x: updatedBlock.position.x,
+      y: updatedBlock.position.y,
+      width: updatedBlock.position.width,
+      height: updatedBlock.position.height
+    });
+  };
+
   // Export handlers
   const handleExport = async (format: ExportFormat) => {
     if (!documentModel) return;
@@ -172,6 +199,68 @@ export function PdfEditorV2({ className = '' }: PdfEditorV2Props) {
   // Handle preview update completion
   const handlePreviewUpdateComplete = () => {
     setShouldUpdatePreview(false);
+  };
+
+  // Handle adding a new text box at clicked position
+  const handleAddTextBox = (x: number, y: number, pageNumber: number) => {
+    console.log('📝 handleAddTextBox called:', {
+      x,
+      y,
+      pageNumber,
+      hasDocumentModel: !!documentModel
+    });
+
+    if (!documentModel) {
+      console.log('❌ No document model available');
+      return;
+    }
+
+    // Create a new text block at the clicked position
+    const newBlock: BlockModel = {
+      id: DocumentModelUtils.generateId(),
+      type: 'paragraph',
+      content: 'New text box - double click to edit',
+      position: {
+        x: x,
+        y: y,
+        width: 200, // Default width
+        height: 30 // Default height
+      },
+      style: {
+        ...DocumentModelUtils.getDefaultStyle('paragraph'),
+        fontSize: 12,
+        fontFamily: 'Arial',
+        fontWeight: 'normal',
+        fontStyle: 'normal',
+        color: '#000000'
+      },
+      metadata: {
+        confidence: 1.0, // User-created, so 100% confidence
+        originalFontSize: 12,
+        originalColor: '#000000',
+        originalBounds: { x, y, width: 200, height: 30 },
+        textRuns: [],
+        isEdited: true // Mark as edited since it's user-created
+      }
+    };
+
+    // Add the new block to the appropriate page
+    const updatedModel: DocumentModel = {
+      ...documentModel,
+      pages: documentModel.pages.map((page) =>
+        page.pageNumber === pageNumber
+          ? { ...page, blocks: [...page.blocks, newBlock] }
+          : page
+      ),
+      updatedAt: new Date()
+    };
+
+    setDocumentModel(updatedModel);
+    setSelectedBlock(newBlock);
+    setIsAddingTextBox(false);
+    setShouldUpdatePreview(true);
+
+    console.log('📝 Added new text box:', newBlock);
   };
 
   // Get statistics
@@ -420,6 +509,23 @@ export function PdfEditorV2({ className = '' }: PdfEditorV2Props) {
                 {showPreview ? 'Hide Preview' : 'Show Preview'}
               </Button>
             )}
+            {documentModel && (
+              <Button
+                variant={isAddingTextBox ? 'default' : 'outline'}
+                size='sm'
+                onClick={() => {
+                  console.log(
+                    '🔘 Add Text Box button clicked, current state:',
+                    isAddingTextBox
+                  );
+                  setIsAddingTextBox(!isAddingTextBox);
+                  console.log('🔘 New state will be:', !isAddingTextBox);
+                }}
+              >
+                <Plus className='mr-1 h-4 w-4' />
+                {isAddingTextBox ? 'Cancel' : 'Add Text Box'}
+              </Button>
+            )}
             <h1 className='font-semibold'>
               {documentModel?.metadata.title ||
                 pdfFile?.name ||
@@ -443,7 +549,11 @@ export function PdfEditorV2({ className = '' }: PdfEditorV2Props) {
               pdfFile={pdfFile}
               onBlockSelect={handleBlockSelect}
               onDocumentModelReady={handleDocumentModelReady}
+              onBlockUpdate={handleBlockUpdate}
               className='h-full'
+              isAddingTextBox={isAddingTextBox}
+              onAddTextBox={handleAddTextBox}
+              documentModel={documentModel}
             />
           ) : (
             <div className='flex h-full items-center justify-center bg-gray-100'>
