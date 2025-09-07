@@ -17,6 +17,7 @@ import {
   Trash2,
   Plus,
   Settings,
+  Layers,
   RefreshCw
 } from 'lucide-react';
 import {
@@ -47,6 +48,9 @@ export function PdfEditorV2({ className = '' }: PdfEditorV2Props) {
   const [showSidebar, setShowSidebar] = useState(true);
   const [showPreview, setShowPreview] = useState(true); // Always show by default
   const [isAddingTextBox, setIsAddingTextBox] = useState(false);
+
+  // NEW: Hybrid rendering feature flag
+  const [enableHybridRendering, setEnableHybridRendering] = useState(false);
 
   // Preview state
   const [shouldUpdatePreview, setShouldUpdatePreview] = useState(false);
@@ -526,6 +530,23 @@ export function PdfEditorV2({ className = '' }: PdfEditorV2Props) {
                 {isAddingTextBox ? 'Cancel' : 'Add Text Box'}
               </Button>
             )}
+
+            {/* NEW: Hybrid Rendering Toggle (for testing) */}
+            {documentModel && (
+              <Button
+                variant={enableHybridRendering ? 'default' : 'outline'}
+                size='sm'
+                onClick={() => {
+                  setEnableHybridRendering(!enableHybridRendering);
+                  console.log('🎨 Hybrid rendering:', !enableHybridRendering);
+                }}
+                title='Toggle hybrid canvas+overlay rendering (experimental)'
+              >
+                <Layers className='mr-1 h-4 w-4' />
+                {enableHybridRendering ? 'Hybrid On' : 'Hybrid Off'}
+              </Button>
+            )}
+
             <h1 className='font-semibold'>
               {documentModel?.metadata.title ||
                 pdfFile?.name ||
@@ -554,6 +575,8 @@ export function PdfEditorV2({ className = '' }: PdfEditorV2Props) {
               isAddingTextBox={isAddingTextBox}
               onAddTextBox={handleAddTextBox}
               documentModel={documentModel}
+              enableHybridRendering={enableHybridRendering}
+              renderMode='overlay' // Default render mode
             />
           ) : (
             <div className='flex h-full items-center justify-center bg-gray-100'>

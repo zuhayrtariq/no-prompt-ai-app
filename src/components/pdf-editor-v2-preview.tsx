@@ -13,11 +13,18 @@ import {
   Eye,
   EyeOff,
   Info,
-  FileText
+  FileText,
+  Layers
 } from 'lucide-react';
 import { DocumentModel, BlockModel } from '@/lib/document-model';
 import { PdfParser } from '@/lib/pdf-parser';
 import { BlockOverlay } from './block-overlay';
+import {
+  CanvasTextRenderer,
+  createCanvasTextRenderer
+} from '@/lib/canvas-text-renderer';
+
+type RenderMode = 'overlay' | 'canvas' | 'hybrid';
 
 interface PdfEditorV2PreviewProps {
   pdfFile: File;
@@ -29,6 +36,8 @@ interface PdfEditorV2PreviewProps {
   isAddingTextBox?: boolean;
   onAddTextBox?: (x: number, y: number, pageNumber: number) => void;
   documentModel?: DocumentModel | null; // Accept document model from parent
+  renderMode?: RenderMode; // NEW: Control rendering mode
+  enableHybridRendering?: boolean; // NEW: Feature flag
 }
 
 export function PdfEditorV2Preview({
@@ -40,7 +49,9 @@ export function PdfEditorV2Preview({
   enableScaling = false,
   isAddingTextBox = false,
   onAddTextBox,
-  documentModel: parentDocumentModel
+  documentModel: parentDocumentModel,
+  renderMode = 'overlay', // Default to overlay mode (current behavior)
+  enableHybridRendering = false // Default to false (feature flag)
 }: PdfEditorV2PreviewProps) {
   // Core state
   const [documentModel, setDocumentModel] = useState<DocumentModel | null>(
@@ -59,6 +70,11 @@ export function PdfEditorV2Preview({
   const [showDebugInfo, setShowDebugInfo] = useState(false);
   const [isParsingPdf, setIsParsingPdf] = useState(false);
 
+  // NEW: Local render mode state (can override prop)
+  const [localRenderMode, setLocalRenderMode] =
+    useState<RenderMode>(renderMode);
+  const activeRenderMode = localRenderMode;
+
   // Canvas and rendering
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -66,6 +82,9 @@ export function PdfEditorV2Preview({
     width: 0,
     height: 0
   });
+
+  // Canvas text renderer (NEW)
+  const canvasTextRendererRef = useRef<CanvasTextRenderer | null>(null);
 
   // PDF parser instance
   const pdfParserRef = useRef<PdfParser>(new PdfParser());
@@ -141,6 +160,50 @@ export function PdfEditorV2Preview({
   // Track render task to prevent multiple renders
   const renderTaskRef = useRef<any>(null);
 
+  // NEW: Render text blocks on canvas
+  const renderTextBlocksOnCanvas = useCallback(
+    async (context: CanvasRenderingContext2D, canvasScale: number) => {
+      const currentDocumentModel = parentDocumentModel || documentModel;
+      if (!currentDocumentModel || !canvasRef.current) return;
+
+      const currentPageModel = currentDocumentModel.pages.find(
+        (p) => p.pageNumber === currentPage
+      );
+      if (!currentPageModel) return;
+
+      // Initialize canvas text renderer if needed
+      if (!canvasTextRendererRef.current) {
+        canvasTextRendererRef.current = createCanvasTextRenderer(
+          canvasRef.current,
+          {
+            scale: canvasScale,
+            debug: showDebugInfo
+          }
+        );
+      } else {
+        canvasTextRendererRef.current.updateOptions({
+          scale: canvasScale,
+          debug: showDebugInfo
+        });
+      }
+
+      // Render text blocks - ONLY user-added text boxes (isEdited = true)
+      if (canvasTextRendererRef.current) {
+        const userAddedBlocks = currentPageModel.blocks.filter(
+          (block) =>
+            block.metadata.isEdited === true &&
+            (block.type === 'paragraph' || block.type === 'heading')
+        );
+
+        canvasTextRendererRef.current.renderTextBlocks(userAddedBlocks);
+        console.log(
+          `🎨 Rendered ${userAddedBlocks.length} user-added text boxes on canvas (out of ${currentPageModel.blocks.length} total blocks)`
+        );
+      }
+    },
+    [parentDocumentModel, documentModel, currentPage, showDebugInfo]
+  );
+
   // Render PDF page to canvas
   const renderPdfPage = useCallback(async () => {
     if (!pdfDocument || !canvasRef.current || currentPage < 1) return;
@@ -180,13 +243,29 @@ export function PdfEditorV2Preview({
       await renderTaskRef.current.promise;
       renderTaskRef.current = null;
 
+      // NEW: Render text blocks on canvas if hybrid rendering is enabled
+      if (
+        enableHybridRendering &&
+        (activeRenderMode === 'canvas' || activeRenderMode === 'hybrid')
+      ) {
+        await renderTextBlocksOnCanvas(context, scale);
+      }
+
       console.log(`✅ Rendered page ${currentPage} at scale ${scale}`);
     } catch (error) {
       if (error.name !== 'RenderingCancelledException') {
         console.error('❌ Failed to render PDF page:', error);
       }
     }
-  }, [pdfDocument, currentPage, scale, rotation]);
+  }, [
+    pdfDocument,
+    currentPage,
+    scale,
+    rotation,
+    enableHybridRendering,
+    activeRenderMode,
+    renderTextBlocksOnCanvas
+  ]);
 
   // Re-render when dependencies change
   useEffect(() => {
@@ -350,6 +429,27 @@ export function PdfEditorV2Preview({
             )}
           </Button>
 
+          {/* Render Mode Toggle (NEW) */}
+          {enableHybridRendering && (
+            <Button
+              variant='outline'
+              size='sm'
+              onClick={() => {
+                const modes: RenderMode[] = ['overlay', 'canvas', 'hybrid'];
+                const currentIndex = modes.indexOf(activeRenderMode);
+                const nextIndex = (currentIndex + 1) % modes.length;
+                setLocalRenderMode(modes[nextIndex]);
+                console.log(`🎨 Render mode changed to: ${modes[nextIndex]}`);
+              }}
+              title={`Current: ${activeRenderMode} (click to cycle)`}
+            >
+              <Layers className='h-4 w-4' />
+              <span className='ml-1 text-xs'>
+                {activeRenderMode.toUpperCase()}
+              </span>
+            </Button>
+          )}
+
           {/* Debug Info */}
           <Button
             variant={showDebugInfo ? 'default' : 'outline'}
@@ -398,19 +498,23 @@ export function PdfEditorV2Preview({
                 }}
               />
 
-              {/* Block Overlay */}
-              {showBlockOverlay && activeDocumentModel && (
-                <BlockOverlay
-                  blocks={blocks}
-                  selectedBlockId={selectedBlockId}
-                  onBlockSelect={handleBlockSelect}
-                  onBlockUpdate={onBlockUpdate}
-                  containerDimensions={canvasDimensions}
-                  scale={scale}
-                  showDebugInfo={showDebugInfo}
-                  isAddingTextBox={isAddingTextBox}
-                />
-              )}
+              {/* Block Overlay - conditional based on render mode */}
+              {showBlockOverlay &&
+                activeDocumentModel &&
+                (!enableHybridRendering ||
+                  activeRenderMode === 'overlay' ||
+                  activeRenderMode === 'hybrid') && (
+                  <BlockOverlay
+                    blocks={blocks}
+                    selectedBlockId={selectedBlockId}
+                    onBlockSelect={handleBlockSelect}
+                    onBlockUpdate={onBlockUpdate}
+                    containerDimensions={canvasDimensions}
+                    scale={scale}
+                    showDebugInfo={showDebugInfo}
+                    isAddingTextBox={isAddingTextBox}
+                  />
+                )}
             </div>
           </div>
         )}
