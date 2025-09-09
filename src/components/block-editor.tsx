@@ -92,16 +92,22 @@ export function BlockEditor({
   };
 
   const updateStyle = (styleUpdates: Partial<typeof editedBlock.style>) => {
+    const newStyle = { ...editedBlock.style, ...styleUpdates };
     updateBlock({
-      style: { ...editedBlock.style, ...styleUpdates }
+      style: newStyle
     });
   };
 
   const handleSave = () => {
-    const finalBlock = DocumentModelUtils.updateBlockContent(
-      editedBlock,
-      editedBlock.content
-    );
+    // Preserve ALL changes including style updates
+    const finalBlock = {
+      ...editedBlock, // This preserves ALL changes including style
+      metadata: {
+        ...editedBlock.metadata,
+        isEdited: true,
+        editedAt: new Date()
+      }
+    };
     onSave(finalBlock);
     setHasChanges(false);
   };
@@ -359,6 +365,13 @@ function BlockStyleEditor({
   blockType: BlockType;
   onStyleChange: (style: Partial<BlockModel['style']>) => void;
 }) {
+  console.log('🎨 BlockStyleEditor Render:', {
+    receivedColor: style?.color,
+    colorType: typeof style?.color,
+    styleObject: style,
+    timestamp: Date.now()
+  });
+
   return (
     <div className='space-y-4'>
       <div className='grid grid-cols-2 gap-4'>
@@ -380,13 +393,22 @@ function BlockStyleEditor({
           <div className='flex space-x-2'>
             <input
               type='color'
-              value={style.color}
-              onChange={(e) => onStyleChange({ color: e.target.value })}
+              value={style.color || '#000000'}
+              onChange={(e) => {
+                console.log('🎨 Color Picker Change:', {
+                  from: style.color,
+                  to: e.target.value,
+                  eventType: 'color-picker'
+                });
+                onStyleChange({ color: e.target.value });
+              }}
               className='h-8 w-12 cursor-pointer rounded border'
             />
             <Input
-              value={style.color}
-              onChange={(e) => onStyleChange({ color: e.target.value })}
+              value={style.color || '#000000'}
+              onChange={(e) => {
+                onStyleChange({ color: e.target.value });
+              }}
               className='text-sm'
             />
           </div>

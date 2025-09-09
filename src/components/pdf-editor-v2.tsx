@@ -50,7 +50,7 @@ export function PdfEditorV2({ className = '' }: PdfEditorV2Props) {
   const [isAddingTextBox, setIsAddingTextBox] = useState(false);
 
   // NEW: Hybrid rendering feature flag
-  const [enableHybridRendering, setEnableHybridRendering] = useState(false);
+  const [enableHybridRendering, setEnableHybridRendering] = useState(true);
 
   // Preview state
   const [shouldUpdatePreview, setShouldUpdatePreview] = useState(false);
@@ -576,7 +576,7 @@ export function PdfEditorV2({ className = '' }: PdfEditorV2Props) {
               onAddTextBox={handleAddTextBox}
               documentModel={documentModel}
               enableHybridRendering={enableHybridRendering}
-              renderMode='overlay' // Default render mode
+              renderMode='hybrid' // Default render mode
             />
           ) : (
             <div className='flex h-full items-center justify-center bg-gray-100'>

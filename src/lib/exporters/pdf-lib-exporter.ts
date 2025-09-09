@@ -111,15 +111,25 @@ export class PdfLibExporter {
       console.log(`✅ White cover rectangle drawn`);
 
       // Step 2: Get appropriate font
+      console.log('🔍 Font Selection - Block style:', {
+        fontFamily: block.style?.fontFamily,
+        fontSize: block.style?.fontSize,
+        fontWeight: block.style?.fontWeight,
+        fontStyle: block.style?.fontStyle
+      });
+
       const font = await this.getFont(pdfPage.doc, block);
       console.log(`✅ Font loaded: ${font.name || 'Unknown'}`);
 
-      // Step 3: Calculate font size - use a more conservative approach
-      let fontSize = Math.max(8, Math.min(block.position.height * 0.6, 14));
-      if (block.type === 'heading') {
-        fontSize = Math.max(10, Math.min(block.position.height * 0.7, 18));
+      // Step 3: Calculate font size - SHOULD USE USER'S FONT SIZE!
+      let fontSize = block.style?.fontSize || 12; // Use user's font size first
+
+      if (!block.style?.fontSize) {
+        fontSize = Math.max(8, Math.min(block.position.height * 0.6, 14));
+        if (block.type === 'heading') {
+          fontSize = Math.max(10, Math.min(block.position.height * 0.7, 18));
+        }
       }
-      console.log(`📏 Calculated font size: ${fontSize}`);
 
       // Step 4: Get text color
       const colorValues = this.getTextColor(block);
