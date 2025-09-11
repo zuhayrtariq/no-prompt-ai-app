@@ -67,6 +67,14 @@ export const navItems: NavItem[] = [
     items: [] // No child items
   },
   {
+    title: 'AI Writer',
+    url: '/dashboard/ai-writer',
+    icon: 'aiWriter',
+    shortcut: ['a', 'w'],
+    isActive: false,
+    items: [] // No child items
+  },
+  {
     title: 'PDF Tools',
     url: '/dashboard/pdf-tools',
     icon: 'post',
