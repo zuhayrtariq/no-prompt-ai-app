@@ -25,7 +25,6 @@ yarn-debug.log*
 yarn-error.log*
 
 # local env files
-.env*
 .env*.local
 
 # vercel
@@ -50,3 +49,4 @@ next-env.d.ts
 
 # Tesseract OCR training data files (large binary files)
 *.traineddata
+config.bat
