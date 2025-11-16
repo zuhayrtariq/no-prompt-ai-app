@@ -67,36 +67,12 @@ export const navItems: NavItem[] = [
     items: [] // No child items
   },
   {
-    title: 'PDF Tools',
-    url: '/dashboard/pdf-tools',
+    title: 'OCR (Extract Text)',
+    url: '/dashboard/pdf-ocr',
     icon: 'post',
+    shortcut: ['o', 'c'],
     isActive: false,
-    items: [
-      {
-        title: 'PDF Tools Hub',
-        url: '/dashboard/pdf-tools',
-        icon: 'fileEdit',
-        shortcut: ['p', 't']
-      },
-      {
-        title: 'OCR (Extract Text)',
-        url: '/dashboard/pdf-ocr',
-        icon: 'post',
-        shortcut: ['o', 'c']
-      },
-      {
-        title: 'PDF Editor',
-        url: '/dashboard/pdf-editor',
-        icon: 'fileEdit',
-        shortcut: ['p', 'e']
-      },
-      {
-        title: 'PDF Quick Fixer',
-        url: '/dashboard/pdf-quick-fixer',
-        icon: 'zap',
-        shortcut: ['q', 'f']
-      }
-    ]
+    items: [] // No child items
   }
 ];
 
