@@ -49,4 +49,3 @@ next-env.d.ts
 
 # Tesseract OCR training data files (large binary files)
 *.traineddata
-config.bat
