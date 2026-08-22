@@ -50,5 +50,4 @@ next-env.d.ts
 # Tesseract.js files (large WASM/binary files)
 /public/tesseract/
 debug-page-*.png
-config.bat
 .env
